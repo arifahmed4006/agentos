@@ -1,0 +1,62 @@
+model_list:
+  # DEFAULT — Groq Llama 3.1 8B (free tier, 249ms, recommended starting point)
+  # Sign up at console.groq.com — no card needed
+  - model_name: claude-haiku
+    litellm_params:
+      model: anthropic/claude-haiku-4-5-20251001
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: gpt-4o
+    litellm_params:
+      model: openai/gpt-4o
+      api_key: os.environ/OPENAI_API_KEY
+
+  - model_name: phi-local
+    litellm_params:
+      model: ollama/phi4-mini
+      api_base: os.environ/OLLAMA_URL
+
+  - model_name: llama-local
+    litellm_params:
+      model: ollama/llama3.1:8b
+      api_base: os.environ/OLLAMA_URL
+
+  - model_name: llama-groq
+    litellm_params:
+      model: groq/llama-3.1-8b-instant
+      api_key: os.environ/GROQ_API_KEY
+
+  - model_name: gemini-flash
+    litellm_params:
+      model: gemini/gemini-2.5-flash
+      api_key: os.environ/GEMINI_API_KEY
+
+# Guardrails
+litellm_settings:
+  # Block toxic/rude prompts
+  blocked_keywords:
+    - "stupid"
+    - "idiot"
+    - "shut up"
+    - "you suck"
+
+  # Fallback: if primary model fails, try backup
+  fallbacks:
+    - claude-haiku: [gemini-flash, phi-local]
+    - gpt-4o: [claude-haiku, phi-local]
+    - gemini-flash: [claude-haiku, phi-local]
+    - llama-groq: [claude-haiku, gemini-flash]
+    - llama-local: [llama-groq, claude-haiku, gemini-flash]
+
+  # Max budget per day (in USD) - prevents runaway costs
+  max_budget: 5.0
+
+  # Rate limiting
+  global_max_parallel_requests: 10
+
+  # Langfuse observability
+  success_callback: ["langfuse"]
+  failure_callback: ["langfuse"]
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY

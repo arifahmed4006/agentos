@@ -1,0 +1,8 @@
+.env
+*.env
+!**/.env.example
+.n8n/
+*.bak
+.DS_Store
+*.log
+volumes/

@@ -1,0 +1,132 @@
+{
+  "name": "AgentOS - Error Handler v2",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "63cd3c94-2179-4175-a9c5-5ebcc9b8bed6",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e1",
+              "name": "phoneNumberId",
+              "value": "YOUR_WA_PHONE_NUMBER_ID",
+              "type": "string"
+            },
+            {
+              "id": "e2",
+              "name": "adminPhone",
+              "value": "YOUR_ADMIN_PHONE",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "dc22555f-9bd5-4765-a747-c4e83a5cb7c8",
+      "name": "CONFIG",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        208,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const e = $input.first().json;\nconst t = `\ud83d\udea8 AgentOS error\\nWorkflow: ${e.workflow?.name||'?'}\\nNode: ${e.execution?.error?.node?.name||'?'}\\nError: ${(e.execution?.error?.message||'?').slice(0,300)}\\nExec: ${e.execution?.id||'?'}`;\nreturn [{json:{...$('CONFIG').first().json, alert:t}}];"
+      },
+      "id": "572d11cd-3fb3-447f-97d8-f8df38910339",
+      "name": "Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/{{ $json.phoneNumberId }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({messaging_product:'whatsapp', to:$json.adminPhone, type:'text', text:{body:$json.alert}}) }}",
+        "options": {}
+      },
+      "id": "ed1d4cd5-a787-4a7d-a55c-c3335ed9f8c1",
+      "name": "WA Alert Admin",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        608,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ADD_YOUR_CREDENTIAL_ID",
+          "name": "Meta WA Token"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "CONFIG",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CONFIG": {
+      "main": [
+        [
+          {
+            "node": "Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format": {
+      "main": [
+        [
+          {
+            "node": "WA Alert Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "71ac7618-4dfe-4b33-a3df-7b0aa3243227",
+  "meta": {
+    "instanceId": "YOUR_N8N_INSTANCE_ID"
+  },
+  "id": "",
+  "tags": []
+}

@@ -1,0 +1,1393 @@
+{
+  "name": "AgentOS - Document Chaser v2",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "wa-chaser",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "db606c21-c25f-4fa5-91b8-8174400a1d0c",
+      "name": "Meta Verification (GET)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        80
+      ],
+      "notesInFlow": true,
+      "webhookId": "d1003277-efc4-4d85-999f-1a20f03a9ede",
+      "notes": "Meta sends a GET request with hub.challenge when you click 'Verify and Save' in the Meta console. This branch answers it."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.query['hub.verify_token'] }}",
+              "rightValue": "agentos-verify-2026",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "0e886c5d-9325-4f4b-b8d2-cebbafe583b8",
+      "name": "Token Matches?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -224,
+        80
+      ],
+      "notesInFlow": true,
+      "notes": "Verify token must equal what you type in the Meta console. Change BOTH places if you change it."
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $('Meta Verification (GET)').first().json.query['hub.challenge'] }}",
+        "options": {}
+      },
+      "id": "8f11d20b-6b22-4ffd-92a2-4e58831a3d45",
+      "name": "Respond Challenge",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "forbidden",
+        "options": {
+          "responseCode": 403
+        }
+      },
+      "id": "591943be-a6cd-4b0e-a9f4-34a49505a73a",
+      "name": "Respond 403",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "wa-chaser",
+        "options": {}
+      },
+      "id": "779027af-b43f-4935-83c7-760124b4f569",
+      "name": "WhatsApp Inbound (POST)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        464
+      ],
+      "notesInFlow": true,
+      "webhookId": "2aea34c4-7db0-495d-90f3-a2efdb27c54f",
+      "notes": "Meta POSTs every inbound message here. Default response mode replies 200 immediately, which satisfies Meta's 5-second rule."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "phoneNumberId",
+              "value": "YOUR_WA_PHONE_NUMBER_ID",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "sheetId",
+              "value": "1-Rg3pvD9qd2hHqn1OwsVESi-nwvC8rWyq6xY4MJVuxI",
+              "type": "string"
+            },
+            {
+              "id": "a3",
+              "name": "adminPhone",
+              "value": "91YOUR_ADMIN_PHONE",
+              "type": "string"
+            },
+            {
+              "id": "a4",
+              "name": "litellmUrl",
+              "value": "http://92.4.73.211:4000",
+              "type": "string"
+            },
+            {
+              "id": "a5",
+              "name": "litellmKey",
+              "value": "YOUR_LITELLM_MASTER_KEY",
+              "type": "string"
+            },
+            {
+              "id": "a6",
+              "name": "model",
+              "value": "llama-local",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "f1527b8f-c966-4ee4-8d91-4b44c154789b",
+      "name": "CONFIG (Inbound)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -224,
+        464
+      ],
+      "notesInFlow": true,
+      "notes": "EDIT ME: all per-client settings live here. When cloning for a new client, change values here AND in 'CONFIG (Reminders)'."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract clean message data from Meta's webhook payload.\n// Meta also POSTs delivery/read status updates - we ignore those.\nconst body = $input.first().json.body || $input.first().json;\nconst cfg = $input.first().json;\n\nlet value;\ntry {\n  value = body.entry[0].changes[0].value;\n} catch (e) {\n  return []; // not a message payload\n}\n\n// Status updates (sent/delivered/read) have no 'messages' array\nif (!value.messages || !value.messages.length) {\n  return [];\n}\n\nconst message = value.messages[0];\nconst contact = (value.contacts && value.contacts[0]) || {};\n\nconst out = {\n  phoneNumberId: cfg.phoneNumberId,\n  sheetId: cfg.sheetId,\n  adminPhone: cfg.adminPhone,\n  litellmUrl: cfg.litellmUrl,\n  litellmKey: cfg.litellmKey,\n  model: cfg.model,\n  from: message.from,\n  msgId: message.id,\n  msgType: message.type,\n  timestamp: message.timestamp,\n  displayName: (contact.profile && contact.profile.name) || message.from,\n  textContent: '',\n  mediaId: null,\n  fileName: null,\n  mimeType: null\n};\n\nif (message.type === 'text') {\n  out.textContent = (message.text && message.text.body) || '';\n} else if (message.type === 'document') {\n  out.mediaId = message.document && message.document.id;\n  out.fileName = (message.document && message.document.filename) || 'document.pdf';\n  out.mimeType = (message.document && message.document.mime_type) || 'application/pdf';\n  out.textContent = (message.document && message.document.caption) || '';\n} else if (message.type === 'image') {\n  out.mediaId = message.image && message.image.id;\n  out.fileName = 'photo_' + message.id.slice(-8) + '.jpg';\n  out.mimeType = 'image/jpeg';\n  out.textContent = (message.image && message.image.caption) || '';\n} else {\n  // audio / video / sticker / location etc - treat as OTHER text\n  out.textContent = '(' + message.type + ' message)';\n}\n\nreturn [{ json: out }];"
+      },
+      "id": "20f119ad-0fc5-4fe4-a3b4-533b7d61a112",
+      "name": "Extract Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        464
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('CONFIG (Inbound)').first().json.sheetId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Files"
+        },
+        "options": {}
+      },
+      "id": "c3b1b37e-75f9-44a9-b973-2cbaad5c9d6e",
+      "name": "Read Files Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        224,
+        464
+      ],
+      "notesInFlow": true,
+      "credentials": {
+        "googleApi": {
+          "id": "ADD_YOUR_CREDENTIAL_ID",
+          "name": "AgentOS Google SA"
+        }
+      },
+      "notes": "Reads the whole Files tab. Uses a Google SERVICE ACCOUNT credential (no OAuth redirect headaches on self-hosted n8n)."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Match the sender's phone against the Files sheet and build full context.\nconst msg = $('Extract Message').first().json;\nconst rows = $input.all().map(i => i.json);\n\nconst norm = p => String(p || '').replace(/[^0-9]/g, '');\nconst row = rows.find(r => norm(r.phone) === norm(msg.from));\n\nif (!row) {\n  return [{ json: { ...msg, found: false } }];\n}\n\nconst split = s => String(s || '').split(',').map(x => x.trim()).filter(Boolean);\nconst allDocs = split(row.required_docs);\nconst receivedDocs = split(row.received_docs);\nconst pendingDocs = allDocs.filter(d => !receivedDocs.includes(d));\n\nreturn [{ json: {\n  ...msg,\n  found: true,\n  clientName: row.name || msg.displayName,\n  fileRef: row.file_ref || '',\n  ownerPhone: norm(row.owner_phone),\n  allDocs, receivedDocs, pendingDocs,\n  rowStatus: row.status || 'PENDING'\n} }];"
+      },
+      "id": "32235a43-1ce6-45f3-8830-db2078279e87",
+      "name": "Find Client",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        464
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "k1",
+              "leftValue": "={{ $json.found }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "05bcc817-f12e-4ef2-9f99-622d5bd96747",
+      "name": "Known Client?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        672,
+        464
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/{{ $json.phoneNumberId }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ messaging_product: 'whatsapp', to: $json.from, type: 'text', text: { body: 'Hi! This number is not on our files list yet. Please contact your advisor to get started.' } }) }}",
+        "options": {}
+      },
+      "id": "e4c8071a-2bf8-47af-b75d-1a2cc1b73183",
+      "name": "WA Reply - Unknown Sender",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        624
+      ],
+      "notesInFlow": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ADD_YOUR_CREDENTIAL_ID",
+          "name": "Meta WA Token"
+        }
+      },
+      "notes": "Credential: 'Meta WA Token' (Header Auth)."
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\n\nconst system = `You classify WhatsApp messages in a loan/insurance document-collection conversation.\n\nOutput ONLY this exact format, nothing else:\n{\"intent\":\"VALUE\"}\n\nReplace VALUE with exactly one of:\nDOCUMENT_SENT - user is sending or has attached a file, photo, or document\nASKING_QUESTION - user asks what documents are needed, format, deadline, or process\nDELAY_PROMISE - user says they will send later, need more time, or are busy\nALREADY_SENT - user claims they already sent something previously\nGREETING - only hello, hi, thanks, ok, fine, noted\nOTHER - anything else\n\nExamples (copy this exact output format):\n\"Sending bank statement now\" -> {\"intent\":\"DOCUMENT_SENT\"}\n\"Ye lo meri salary slip\" -> {\"intent\":\"DOCUMENT_SENT\"}\n\"yahan hai document\" -> {\"intent\":\"DOCUMENT_SENT\"}\n\"bhej raha hoon\" -> {\"intent\":\"DOCUMENT_SENT\"}\n\"Which months bank statement?\" -> {\"intent\":\"ASKING_QUESTION\"}\n\"Konsa format chahiye?\" -> {\"intent\":\"ASKING_QUESTION\"}\n\"kya kya documents chahiye?\" -> {\"intent\":\"ASKING_QUESTION\"}\n\"Will send tomorrow\" -> {\"intent\":\"DELAY_PROMISE\"}\n\"kal bhejta hoon\" -> {\"intent\":\"DELAY_PROMISE\"}\n\"thoda time do\" -> {\"intent\":\"DELAY_PROMISE\"}\n\"abhi busy hoon, baad mein bhejta hoon\" -> {\"intent\":\"DELAY_PROMISE\"}\n\"I already sent everything\" -> {\"intent\":\"ALREADY_SENT\"}\n\"maine kal hi bhej diya tha\" -> {\"intent\":\"ALREADY_SENT\"}\n\"pehle hi send kar diya\" -> {\"intent\":\"ALREADY_SENT\"}\n\"Hi\" -> {\"intent\":\"GREETING\"}\n\"ok thanks\" -> {\"intent\":\"GREETING\"}\n\"theek hai\" -> {\"intent\":\"GREETING\"}\n\nIMPORTANT: Output ONLY the JSON. No explanation. No markdown. No backticks.`;\n\nconst userMsg = `Message type: ${d.msgType}\\nMessage text: ${d.textContent || '(no text, file attached)'}`;\n\nreturn [{ json: {\n...d,\nllmBody: {\nmodel: d.model,\ntemperature: 0,\nmax_tokens: 20,\nmessages: [\n{ role: 'system', content: system },\n{ role: 'user', content: userMsg }\n],\nuser: d.from,\nmetadata: {\ngeneration_name: 'doc-chaser-classify',\nsession_id: 'wa-' + d.from,\ntags: ['agentos', 'doc-chaser']\n}\n}\n} }];"
+      },
+      "id": "788befbb-c5d6-480d-855b-414ac745ecaf",
+      "name": "Build Classify Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.litellmUrl }}/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.litellmKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.llmBody) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "035ff301-09ff-4d0e-a264-3a707167970a",
+      "name": "LLM Classify",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1104,
+        384
+      ],
+      "notesInFlow": true,
+      "notes": "Goes through LiteLLM -> Ollama. The metadata block is forwarded to Langfuse automatically (success_callback in litellm config)."
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Build Classify Request').first().json;\nconst resp = $input.first().json;\n\nconst VALID = ['DOCUMENT_SENT','ASKING_QUESTION','DELAY_PROMISE','ALREADY_SENT','GREETING','OTHER'];\nlet intent = 'OTHER';\n\ntry {\n  let content = resp.choices[0].message.content.trim();\n  \n  // Strip markdown fences and backticks using split/join to avoid backtick in regex\n  content = content.split('```json').join('').split('```').join('').trim();\n  \n  // Extract just the JSON object\n  const match = content.match(/\\{[^}]+\\}/);\n  if (match) {\n    const parsed = JSON.parse(match[0]);\n    if (VALID.includes(parsed.intent)) {\n      intent = parsed.intent;\n    }\n  }\n} catch (e) {\n  intent = 'OTHER';\n}\n\n// Hard rule 1: actual file attached = always DOCUMENT_SENT\nif (ctx.msgType === 'document' || ctx.msgType === 'image') {\n  intent = 'DOCUMENT_SENT';\n}\n\n// Hard rule 2: text claiming to send but no actual file\nconst hasActualFile = !!(ctx.mediaId);\nconst isClaimingDocument = (intent === 'DOCUMENT_SENT' && !hasActualFile);\n\nconst { llmBody, ...clean } = ctx;\nreturn [{ json: { \n  ...clean, \n  intent,\n  hasActualFile,\n  isClaimingDocument\n} }];"
+      },
+      "id": "2ed51013-c236-4d06-924a-6b4caf1f99d0",
+      "name": "Parse Intent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1328,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "r1",
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "DOCUMENT_SENT",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "document"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "r2",
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "ASKING_QUESTION",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "question"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "r3",
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "DELAY_PROMISE",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "delay"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "r4",
+                    "leftValue": "={{ $json.intent }}",
+                    "rightValue": "ALREADY_SENT",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "already_sent"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "57d72b28-b339-4fcf-88d0-a4feb0af3608",
+      "name": "Route by Intent",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1552,
+        384
+      ],
+      "notesInFlow": true,
+      "notes": "Fallback output handles GREETING and OTHER with one friendly status reply."
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\n\n// CASE A: Client said they're sending but no actual file attached\nif (d.isClaimingDocument) {\n  const pendingList = d.pendingDocs.map(function(x, i) { return (i+1) + '. ' + x; }).join('\\n');\n  const replyText = 'Thanks ' + d.clientName + '! We noticed you mentioned sending documents but no file was attached.\\n\\nPlease send the actual PDF or photo as an attachment in WhatsApp. Still waiting for:\\n' + pendingList;\n  \n  return [{ json: {\n    ...d,\n    isClaimingDocument: true,\n    clientReply: replyText,\n    ownerNote: null,\n    isComplete: false,\n    newReceived: d.receivedDocs,\n    pendingAfter: d.pendingDocs\n  }}];\n}\n\n// CASE B: Actual file attached \u2014 match to pending document\nconst fname = (d.fileName || '').toLowerCase();\nconst ftext = (d.textContent || '').toLowerCase();\nconst combined = fname + ' ' + ftext;\n\nconst guess = d.pendingDocs.find(function(doc) {\n  const k = doc.toLowerCase();\n  return (\n    (k.includes('bank statement') && (combined.includes('bank') || combined.includes('statement') || combined.includes('hdfc') || combined.includes('sbi') || combined.includes('icici') || combined.includes('axis')))\n    || (k.includes('salary slip') && (combined.includes('salary') || combined.includes('payslip') || combined.includes('pay slip')))\n    || (k.includes('form 16') && (combined.includes('form16') || combined.includes('form 16') || combined.includes('16')))\n    || (k.includes('itr') && (combined.includes('itr') || combined.includes('income tax')))\n    || (k.includes('aadhaar') && (combined.includes('aadhaar') || combined.includes('aadhar') || combined.includes('uid')))\n    || (k.includes('pan') && (combined.includes('pan')))\n    || (k.includes('business registration') && (combined.includes('registration') || combined.includes('gst') || combined.includes('udyam')))\n    || (k.includes('photo') && (combined.includes('photo') || combined.includes('image') || combined.includes('pic')))\n  );\n});\n\nconst receivedLabel = guess || null;\nlet clientReply;\nlet newReceived;\nlet pendingAfter;\nlet isComplete;\n\nif (!receivedLabel) {\n  const pendingList = d.pendingDocs.map(function(x, i) { return (i+1) + '. ' + x; }).join('\\n');\n  clientReply = 'Thank you for sending a file ' + d.clientName + '! We received it but could not automatically identify which document it is.\\n\\nWe will review it shortly. Still awaiting:\\n' + pendingList + '\\n\\nIf you can mention which document this is, it helps us process faster!';\n  newReceived = d.receivedDocs;\n  pendingAfter = d.pendingDocs;\n  isComplete = false;\n} else {\n  newReceived = Array.from(new Set(d.receivedDocs.concat([receivedLabel])));\n  pendingAfter = d.allDocs.filter(function(doc) { return !newReceived.includes(doc); });\n  isComplete = pendingAfter.length === 0;\n\n  if (isComplete) {\n    clientReply = 'Thank you ' + d.clientName + '! All documents for file ' + d.fileRef + ' are now received. Your file is complete and moves to processing. We will be in touch soon!';\n  } else {\n    const pendingList = pendingAfter.map(function(x, i) { return (i+1) + '. ' + x; }).join('\\n');\n    clientReply = 'Received your ' + receivedLabel + '! Still pending for file ' + d.fileRef + ':\\n' + pendingList + '\\n\\nPlease send these when convenient.';\n  }\n}\n\nconst ownerNote = d.fileRef + ' | ' + d.clientName + '\\nReceived: ' + (receivedLabel || 'UNIDENTIFIED FILE') + '\\n' + (isComplete ? 'FILE COMPLETE' : 'Pending: ' + pendingAfter.join(', '));\n\nreturn [{ json: { \n  ...d,\n  receivedLabel,\n  newReceived,\n  pendingAfter,\n  isComplete,\n  clientReply,\n  ownerNote,\n  isClaimingDocument: false\n}}];"
+      },
+      "id": "c86271af-328c-4b93-93c2-e8fbf8f47fd5",
+      "name": "Process Document",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.sheetId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Files"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "phone": "={{ $json.from }}",
+            "received_docs": "={{ $json.newReceived.join(', ') }}",
+            "status": "={{ $json.isComplete ? 'COMPLETE' : 'IN_PROGRESS' }}",
+            "last_activity": "={{ new Date().toISOString() }}"
+          },
+          "matchingColumns": [
+            "phone"
+          ],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "7490cf70-c734-4834-ba5a-578266c9734d",
+      "name": "Sheet: Mark Received",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        2192,
+        144
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "ADD_YOUR_CREDENTIAL_ID",
+          "name": "AgentOS Google SA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/{{ $('Process Document').first().json.phoneNumberId }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ messaging_product: 'whatsapp', to: $('Process Document').first().json.from, type: 'text', text: { body: $('Process Document').first().json.clientReply } }) }}",
+        "options": {}
+      },
+      "id": "01572a5e-1e3c-44dd-b2aa-417f8913acf2",
+      "name": "WA Reply - Doc Received",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2416,
+        64
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ADD_YOUR_CREDENTIAL_ID",
+          "name": "Meta WA Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/{{ $('Process Document').first().json.phoneNumberId }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ messaging_product: 'whatsapp', to: $('Process Document').first().json.ownerPhone, type: 'text', text: { body: $('Process Document').first().json.ownerNote } }) }}",
+        "options": {}
+      },
+      "id": "253e7c91-7208-49ab-9d9d-c5fe84e59c35",
+      "name": "WA Notify - File Owner",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2416,
+        224
+      ],
+      "notesInFlow": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ADD_YOUR_CREDENTIAL_ID",
+          "name": "Meta WA Token"
+        }
+      },
+      "notes": "On the Meta TEST number this only delivers if the owner phone is added as a test recipient."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build the answer-a-question LLM request.\nconst d = $input.first().json;\n\nconst system = `You are the document-collection assistant of a financial services firm, replying on WhatsApp. Answer the client's question briefly and politely (max 3 short sentences, you may use one emoji). Use the pending-documents context. If the question is outside document collection, say their advisor will follow up personally. NEVER give financial, tax or loan advice. Reply in the same language the client used (English or Hindi/Hinglish).`;\n\nconst userMsg = `Client name: ${d.clientName}\\nFile ref: ${d.fileRef}\\nPending documents: ${d.pendingDocs.join(', ') || 'none'}\\nClient question: ${d.textContent}`;\n\nreturn [{ json: { ...d, llmBody: {\n  model: d.model,\n  temperature: 0.3,\n  max_tokens: 180,\n  messages: [ { role: 'system', content: system }, { role: 'user', content: userMsg } ],\n  user: d.from,\n  metadata: { generation_name: 'doc-chaser-answer', session_id: 'wa-' + d.from, tags: ['agentos','doc-chaser'] }\n} } }];"
+      },
+      "id": "a6e7b3c2-40a5-4940-950f-2525ea4bc43e",
+      "name": "Build Answer Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.litellmUrl }}/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.litellmKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.llmBody) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "fabb0a28-460c-4bd6-868b-e7debb630da2",
+      "name": "LLM Answer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2192,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/{{ $('Build Answer Request').first().json.phoneNumberId }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ messaging_product: 'whatsapp', to: $('Build Answer Request').first().json.from, type: 'text', text: { body: ($json.choices && $json.choices[0].message.content.trim()) || 'Your advisor will get back to you on this shortly.' } }) }}",
+        "options": {}
+      },
+      "id": "6e6f8d90-3614-4f01-b730-75bb589829c6",
+      "name": "WA Reply - Answer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2416,
+        320
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ADD_YOUR_CREDENTIAL_ID",
+          "name": "Meta WA Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.sheetId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Files"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "phone": "={{ $json.from }}",
+            "next_reminder": "={{ new Date(Date.now() + 2*86400000).toISOString().slice(0,10) }}",
+            "last_activity": "={{ new Date().toISOString() }}",
+            "notes": "={{ 'Delay promised ' + new Date().toLocaleDateString('en-IN') + ': ' + $json.textContent.slice(0,120) }}"
+          },
+          "matchingColumns": [
+            "phone"
+          ],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "0852c191-91ad-45fc-829a-41d85e6a05af",
+      "name": "Sheet: Log Delay",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1760,
+        512
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "ADD_YOUR_CREDENTIAL_ID",
+          "name": "AgentOS Google SA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/{{ $('Parse Intent').first().json.phoneNumberId }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ messaging_product: 'whatsapp', to: $('Parse Intent').first().json.from, type: 'text', text: { body: 'No problem at all! \ud83d\ude4f We\\u2019ll check back in a couple of days. Reply here anytime if you need help with the documents.' } }) }}",
+        "options": {}
+      },
+      "id": "b0d3e586-450b-4829-9ce9-d40fc40a855b",
+      "name": "WA Reply - Delay OK",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1984,
+        512
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ADD_YOUR_CREDENTIAL_ID",
+          "name": "Meta WA Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/{{ $json.phoneNumberId }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ messaging_product: 'whatsapp', to: $json.from, type: 'text', text: { body: 'Thanks for flagging! We\\u2019ll verify our records right away and your advisor will confirm what is on file. \ud83d\ude4f' } }) }}",
+        "options": {}
+      },
+      "id": "e6d6c669-db9c-4abb-9119-e45941bd4aca",
+      "name": "WA Reply - Already Sent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        688
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ADD_YOUR_CREDENTIAL_ID",
+          "name": "Meta WA Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/{{ $json.phoneNumberId }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ messaging_product: 'whatsapp', to: $json.adminPhone, type: 'text', text: { body: '\u26a0\ufe0f ' + $json.clientName + ' (' + $json.fileRef + ') says documents were already sent. Please verify the file.' } }) }}",
+        "options": {}
+      },
+      "id": "4496bd5e-059a-454b-b2ed-2e56fbda85f1",
+      "name": "WA Notify - Verify Claim",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1984,
+        688
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ADD_YOUR_CREDENTIAL_ID",
+          "name": "Meta WA Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/{{ $json.phoneNumberId }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ messaging_product: 'whatsapp', to: $json.from, type: 'text', text: { body: $json.pendingDocs.length ? ('Hi ' + $json.clientName + '! \ud83d\udc4b For your file ' + $json.fileRef + ' we\\u2019re waiting on:\\n' + $json.pendingDocs.map((d,i)=>(i+1)+'. '+d).join('\\n') + '\\n\\nJust send them here as PDF or photo whenever ready.') : ('Hi ' + $json.clientName + '! \ud83d\udc4b Your file ' + $json.fileRef + ' is complete \u2014 nothing pending from your side. We\\u2019ll keep you posted!') } }) }}",
+        "options": {}
+      },
+      "id": "d7c6ba7d-5c53-455d-a049-342b36b972c4",
+      "name": "WA Reply - Status / Greeting",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        864
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ADD_YOUR_CREDENTIAL_ID",
+          "name": "Meta WA Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 10
+            }
+          ]
+        }
+      },
+      "id": "38626e75-98ff-41e6-90b8-ec0825620be4",
+      "name": "Daily 10:00 Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -448,
+        1168
+      ],
+      "notesInFlow": true,
+      "notes": "Server timezone is Asia/Kolkata (set in docker-compose), so this fires 10:00 IST."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b1",
+              "name": "phoneNumberId",
+              "value": "YOUR_WA_PHONE_NUMBER_ID",
+              "type": "string"
+            },
+            {
+              "id": "b2",
+              "name": "sheetId",
+              "value": "1-Rg3pvD9qd2hHqn1OwsVESi-nwvC8rWyq6xY4MJVuxI",
+              "type": "string"
+            },
+            {
+              "id": "b3",
+              "name": "adminPhone",
+              "value": "91YOUR_ADMIN_PHONE",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7b7bbac8-a1b5-4d20-af45-0bb567f36f16",
+      "name": "CONFIG (Reminders)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -224,
+        1168
+      ],
+      "notesInFlow": true,
+      "notes": "EDIT ME: must match CONFIG (Inbound). Two config nodes exist because the two trigger branches run as separate executions."
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('CONFIG (Reminders)').first().json.sheetId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Files"
+        },
+        "options": {}
+      },
+      "id": "aea4a3d7-8ff5-4e84-83f5-763d2b3cc367",
+      "name": "Read Files (Reminders)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        0,
+        1168
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "ADD_YOUR_CREDENTIAL_ID",
+          "name": "AgentOS Google SA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Decide who gets a reminder today and pre-build each WhatsApp payload.\nconst cfg = $('CONFIG (Reminders)').first().json;\nconst today = new Date().toISOString().slice(0, 10);\nconst rows = $input.all().map(i => i.json);\nconst norm = p => String(p || '').replace(/[^0-9]/g, '');\nconst split = s => String(s || '').split(',').map(x => x.trim()).filter(Boolean);\n\nconst due = [];\nfor (const row of rows) {\n  if (!row.phone) continue;\n  if (String(row.status).toUpperCase() === 'COMPLETE') continue;\n  const next = String(row.next_reminder || '').slice(0, 10) || today;\n  if (next > today) continue;\n  const count = parseInt(row.reminder_count || '0', 10) || 0;\n  if (count >= 5) continue; // stop nagging after 5 reminders; owner should call\n\n  const allDocs = split(row.required_docs);\n  const received = split(row.received_docs);\n  const pending = allDocs.filter(d => !received.includes(d));\n  if (!pending.length) continue;\n\n  const text = `Hi ${row.name || 'there'} \ud83d\udc4b Gentle reminder for your file ${row.file_ref || ''} \u2014 we\\u2019re still waiting on:\\n${pending.map((d,i)=>`${i+1}. ${d}`).join('\\n')}\\n\\nJust reply to this message with the documents (PDF or photo). Need help? Ask here anytime. \ud83d\ude4f`;\n\n  due.push({ json: {\n    phoneNumberId: cfg.phoneNumberId,\n    phone: norm(row.phone),\n    name: row.name,\n    newCount: count + 1,\n    waBody: { messaging_product: 'whatsapp', to: norm(row.phone), type: 'text', text: { body: text } }\n  } });\n}\nreturn due;"
+      },
+      "id": "34a6d9d0-e4a0-4ab9-85bf-edfc5d243dca",
+      "name": "Filter Due Reminders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        1168
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/{{ $json.phoneNumberId }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.waBody) }}",
+        "options": {}
+      },
+      "id": "6d997a5d-1b17-41db-87b5-0a5860d94d20",
+      "name": "WA Send Reminder",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        448,
+        1168
+      ],
+      "notesInFlow": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ADD_YOUR_CREDENTIAL_ID",
+          "name": "Meta WA Token"
+        }
+      },
+      "notes": "PRODUCTION NOTE: free-form text only delivers inside the 24h service window. Outside it, swap this body for an approved utility TEMPLATE message (see setup guide \u00a79)."
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('CONFIG (Reminders)').first().json.sheetId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Files"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "phone": "={{ $json.phone }}",
+            "reminder_count": "={{ $json.newCount }}",
+            "next_reminder": "={{ new Date(Date.now() + 2*86400000).toISOString().slice(0,10) }}",
+            "last_reminder_sent": "={{ new Date().toISOString() }}"
+          },
+          "matchingColumns": [
+            "phone"
+          ],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "e625a5c0-9f7f-43fe-a1cd-d4b9bfc92697",
+      "name": "Sheet: Update Reminder",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        672,
+        1168
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "ADD_YOUR_CREDENTIAL_ID",
+          "name": "AgentOS Google SA"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "acd31d0d-ca2b-4b6d-ab57-6ca0debbe295",
+              "leftValue": "isClaimingDocument ",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1968,
+        144
+      ],
+      "id": "021e73a2-1ace-4b32-b67b-1b2f069f8196",
+      "name": "If"
+    }
+  ],
+  "pinData": {
+    "WhatsApp Inbound (POST)": [
+      {
+        "json": {
+          "headers": {
+            "host": "segments-draft-characteristic-refined.trycloudflare.com",
+            "user-agent": "curl/8.19.0",
+            "content-length": "218",
+            "accept": "*/*",
+            "accept-encoding": "gzip",
+            "cdn-loop": "cloudflare; loops=1; subreqs=1",
+            "cf-connecting-ip": "202.94.161.176",
+            "cf-ew-via": "15",
+            "cf-ipcountry": "IN",
+            "cf-ray": "a0a1be1ad91534be-BOM",
+            "cf-visitor": "{\"scheme\":\"https\"}",
+            "cf-warp-tag-id": "9a917acc-07b0-4086-9dd9-cbe15f97beae",
+            "cf-worker": "trycloudflare.com",
+            "connection": "keep-alive",
+            "content-type": "application/json",
+            "x-forwarded-for": "202.94.161.176",
+            "x-forwarded-proto": "https"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "entry": [
+              {
+                "changes": [
+                  {
+                    "value": {
+                      "contacts": [
+                        {
+                          "profile": {
+                            "name": "Arif Ahmed"
+                          }
+                        }
+                      ],
+                      "messages": [
+                        {
+                          "from": "91YOUR_ADMIN_PHONE",
+                          "id": "wamid.TEST1",
+                          "timestamp": "1718000000",
+                          "type": "text",
+                          "text": {
+                            "body": "Will send tomorrow"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "webhookUrl": "https://segments-draft-characteristic-refined.trycloudflare.com/webhook/wa-chaser",
+          "executionMode": "production"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Meta Verification (GET)": {
+      "main": [
+        [
+          {
+            "node": "Token Matches?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Token Matches?": {
+      "main": [
+        [
+          {
+            "node": "Respond Challenge",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 403",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp Inbound (POST)": {
+      "main": [
+        [
+          {
+            "node": "CONFIG (Inbound)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CONFIG (Inbound)": {
+      "main": [
+        [
+          {
+            "node": "Extract Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Message": {
+      "main": [
+        [
+          {
+            "node": "Read Files Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Files Sheet": {
+      "main": [
+        [
+          {
+            "node": "Find Client",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Client": {
+      "main": [
+        [
+          {
+            "node": "Known Client?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Known Client?": {
+      "main": [
+        [
+          {
+            "node": "Build Classify Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "WA Reply - Unknown Sender",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Classify Request": {
+      "main": [
+        [
+          {
+            "node": "LLM Classify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Classify": {
+      "main": [
+        [
+          {
+            "node": "Parse Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Intent": {
+      "main": [
+        [
+          {
+            "node": "Route by Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Intent": {
+      "main": [
+        [
+          {
+            "node": "Process Document",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Answer Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sheet: Log Delay",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "WA Reply - Already Sent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "WA Reply - Status / Greeting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Document": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheet: Mark Received": {
+      "main": [
+        [
+          {
+            "node": "WA Reply - Doc Received",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "WA Notify - File Owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Answer Request": {
+      "main": [
+        [
+          {
+            "node": "LLM Answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Answer": {
+      "main": [
+        [
+          {
+            "node": "WA Reply - Answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheet: Log Delay": {
+      "main": [
+        [
+          {
+            "node": "WA Reply - Delay OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WA Reply - Already Sent": {
+      "main": [
+        [
+          {
+            "node": "WA Notify - Verify Claim",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily 10:00 Trigger": {
+      "main": [
+        [
+          {
+            "node": "CONFIG (Reminders)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CONFIG (Reminders)": {
+      "main": [
+        [
+          {
+            "node": "Read Files (Reminders)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Files (Reminders)": {
+      "main": [
+        [
+          {
+            "node": "Filter Due Reminders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Due Reminders": {
+      "main": [
+        [
+          {
+            "node": "WA Send Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WA Send Reminder": {
+      "main": [
+        [
+          {
+            "node": "Sheet: Update Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Sheet: Mark Received",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "T1MB9n6PFRh5Rr7z",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "6d077928-414f-460c-9fd4-51ef05f0023f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "YOUR_N8N_INSTANCE_ID"
+  },
+  "id": "",
+  "tags": []
+}

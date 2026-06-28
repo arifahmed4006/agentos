@@ -1,0 +1,79 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: local_postgres
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=evolution
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ai_network
+
+  evolution_api:
+    image: evoapicloud/evolution-api:v2.3.7
+    container_name: whatsapp_bridge
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      - AUTHENTICATION_API_KEY=${EVOLUTION_AUTH_TOKEN}
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgresql://postgres:${POSTGRES_PASSWORD}@local_postgres:5432/evolution
+      - DATABASE_SAVE_DATA_INSTANCE=true
+      - DATABASE_SAVE_DATA_NEW_MESSAGE=true
+      - DATABASE_SAVE_MESSAGE_UPDATE=true
+      - DATABASE_SAVE_DATA_CONTACTS=true
+      - DATABASE_SAVE_DATA_CHATS=true
+      - WEBHOOK_GLOBAL_URL=${N8N_WEBHOOK_URL}
+      - WEBHOOK_GLOBAL_ENABLED=false
+      - CACHE_REDIS_ENABLED=true
+      - CACHE_REDIS_URI=redis://evolution_redis:6379
+      - CACHE_REDIS_PREFIX_KEY=evolution
+      - CACHE_LOCAL_ENABLED=false
+    volumes:
+      - evolution_data:/evolution/instances
+    networks:
+      - ai_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: evolution_redis
+    restart: always
+    networks:
+      - ai_network
+
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    container_name: litellm_gateway
+    restart: always
+    ports:
+      - "4000:4000"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OLLAMA_URL=${OLLAMA_URL}
+      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY}
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
+      - LANGFUSE_HOST=${LANGFUSE_HOST}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+    volumes:
+      - ./litellm-config.yaml:/app/config.yaml
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    networks:
+      - ai_network
+
+volumes:
+  postgres_data:
+  evolution_data:
+
+networks:
+  ai_network:
+    driver: bridge
