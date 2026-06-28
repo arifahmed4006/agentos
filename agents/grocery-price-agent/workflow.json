@@ -81,7 +81,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://92.4.73.211:8080/message/sendText/pricebot",
+        "url": "http://YOUR_WHATSAPP_VM_IP:8080/message/sendText/pricebot",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -112,7 +112,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://92.4.73.211:4000/v1/chat/completions",
+        "url": "http://YOUR_WHATSAPP_VM_IP:4000/v1/chat/completions",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -192,7 +192,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://92.4.73.211:8080/message/sendText/pricebot",
+        "url": "http://YOUR_WHATSAPP_VM_IP:8080/message/sendText/pricebot",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -310,7 +310,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://92.4.73.211:8080/message/sendText/pricebot",
+        "url": "http://YOUR_WHATSAPP_VM_IP:8080/message/sendText/pricebot",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -386,7 +386,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://92.4.73.211:4000/v1/chat/completions",
+        "url": "http://YOUR_WHATSAPP_VM_IP:4000/v1/chat/completions",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -539,7 +539,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://92.4.73.211:8080/message/sendText/pricebot",
+        "url": "http://YOUR_WHATSAPP_VM_IP:8080/message/sendText/pricebot",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -566,7 +566,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://92.4.73.211:8080/message/sendText/pricebot",
+        "url": "http://YOUR_WHATSAPP_VM_IP:8080/message/sendText/pricebot",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -593,7 +593,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://92.4.73.211:8080/message/sendText/pricebot",
+        "url": "http://YOUR_WHATSAPP_VM_IP:8080/message/sendText/pricebot",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -750,7 +750,7 @@
             "user-agent": "axios/1.13.2",
             "content-length": "1408",
             "accept-encoding": "gzip, compress, deflate, br",
-            "host": "129.154.244.211:8080",
+            "host": "YOUR_N8N_VM_IP:8080",
             "connection": "keep-alive"
           },
           "params": {},
@@ -853,13 +853,13 @@
               "instanceId": "e22ae25a-dfb7-4245-933b-69531836ce68",
               "source": "ios"
             },
-            "destination": "http://129.154.244.211:8080/webhook/whatsapp-webhook",
+            "destination": "http://YOUR_N8N_VM_IP:8080/webhook/whatsapp-webhook",
             "date_time": "2026-05-19T05:11:50.712Z",
             "sender": "918828418386@s.whatsapp.net",
             "server_url": "http://localhost:8080",
             "apikey": "FC932434-0FD2-4BF6-88B3-8FFFB00E7F3A"
           },
-          "webhookUrl": "http://129.154.244.211:8080/webhook/whatsapp-webhook",
+          "webhookUrl": "http://YOUR_N8N_VM_IP:8080/webhook/whatsapp-webhook",
           "executionMode": "production"
         },
         "pairedItem": {

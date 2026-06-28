@@ -26,7 +26,7 @@ All three models passed the same eval suite. This task does not need a frontier 
 1. Open n8n on your VM
 2. Go to Workflows > Import from File
 3. Select workflow.json from this folder
-4. Update the LiteLLM URL in the HTTP Request node to http://92.4.73.211:4000
+4. Update the LiteLLM URL in the HTTP Request node to http://YOUR_WHATSAPP_VM_IP:4000
 5. Activate the workflow
 
 ## Required Variables in .env

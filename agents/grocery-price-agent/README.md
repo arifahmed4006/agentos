@@ -16,7 +16,7 @@ The scraper nodes in the workflow point at placeholder URLs. You need to replace
 2. Go to Workflows > Import from File
 3. Select workflow.json from this folder
 4. Replace the three scraper placeholder URLs with your actual endpoints
-5. Update the LiteLLM URL to http://92.4.73.211:4000
+5. Update the LiteLLM URL to http://YOUR_WHATSAPP_VM_IP:4000
 6. Activate the workflow
 
 ## Required Variables in .env
