@@ -239,7 +239,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://api.apify.com/v2/acts/shahidirfan~zepto-product-scraper/run-sync-get-dataset-items?token=apify_api_BHrqg9fQRHiHvV9F3rXwyQcnIzQwyP3nmSGo&timeout=180&memory=1024",
+        "url": "=https://api.apify.com/v2/acts/shahidirfan~zepto-product-scraper/run-sync-get-dataset-items?token=YOUR_APIFY_API_TOKEN&timeout=180&memory=1024",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -355,7 +355,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://api.apify.com/v2/acts/shahidirfan~blinkit-price-scraper/run-sync-get-dataset-items?token=apify_api_BHrqg9fQRHiHvV9F3rXwyQcnIzQwyP3nmSGo&timeout=180&memory=1024",
+        "url": "=https://api.apify.com/v2/acts/shahidirfan~blinkit-price-scraper/run-sync-get-dataset-items?token=YOUR_APIFY_API_TOKEN&timeout=180&memory=1024",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

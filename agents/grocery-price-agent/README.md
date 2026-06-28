@@ -24,3 +24,20 @@ The scraper nodes in the workflow point at placeholder URLs. You need to replace
 - LITELLM_MASTER_KEY
 - GROQ_API_KEY
 - EVOLUTION_AUTH_TOKEN
+
+## Required Credentials and Tokens
+
+- LITELLM_MASTER_KEY — your LiteLLM gateway key
+- GROQ_API_KEY — from console.groq.com
+- EVOLUTION_AUTH_TOKEN — your Evolution API key
+- Apify API Token — from console.apify.com, needed for the Blinkit and Zepto scrapers
+  - Sign up at console.apify.com
+  - Go to Settings > API tokens > Create new token
+  - Replace YOUR_APIFY_API_TOKEN in the workflow URLs with your actual token
+
+## Scraper Actors Used
+
+- Blinkit: shahidirfan~blinkit-price-scraper
+- Zepto: shahidirfan~zepto-product-scraper
+
+These are third party Apify actors. Check their current status and pricing on apify.com before use.
