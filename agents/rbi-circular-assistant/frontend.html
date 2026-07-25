@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RBI Circular Intelligence</title>
+<meta name="description" content="Search and explore RBI circulars. Answers grounded in official circular text — with sources and a verification layer.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#1B3D7A;--navy-dark:#132E5E;--navy-light:#EBF0FB;
+  --saffron:#D4831A;--saffron-bg:#FDF3E3;--saffron-bd:#F0C77A;
+  --paper:#F5F2EA;--white:#FFFFFF;--border:#E0DBD0;
+  --text:#1A1E2E;--muted:#64748B;
+  --green:#1A7A45;--green-bg:#EAF6EE;
+  --sb:340px; /* sidebar width */
+  --ib:76px;  /* input bar height */
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:var(--paper);color:var(--text);display:flex;flex-direction:column;min-height:100vh;padding-bottom:var(--ib)}
+
+/* ── Header ── */
+header{background:var(--navy);padding:22px 28px 18px;border-bottom:3px solid var(--saffron);flex-shrink:0}
+.hdr{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.hdr h1{font-family:'Lora',serif;font-size:clamp(18px,3vw,24px);font-weight:600;color:#fff;margin-bottom:3px}
+.hdr .sub{font-size:13px;color:#A8B8D8}
+.hdr-meta{font-size:11.5px;color:#7A90B8;text-align:right;line-height:1.6;flex-shrink:0}
+.live{display:inline-block;width:7px;height:7px;border-radius:50%;background:#34D399;margin-right:4px;vertical-align:middle}
+
+/* ── Category chips ── */
+.cat-bar{background:var(--white);border-bottom:1px solid var(--border);padding:0 28px;overflow-x:auto;scrollbar-width:none;flex-shrink:0}
+.cat-bar::-webkit-scrollbar{display:none}
+.cat-list{display:flex;gap:6px;padding:10px 0}
+.chip{flex-shrink:0;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;border:1.5px solid var(--border);background:var(--white);color:var(--muted);transition:all .15s;white-space:nowrap;user-select:none}
+.chip:hover{border-color:var(--navy);color:var(--navy)}
+.chip.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+
+/* ── Two-column wrapper ── */
+.layout{display:flex;flex:1;align-items:flex-start}
+
+/* ── Chat column ── */
+.chat-col{flex:1;min-width:0;display:flex;flex-direction:column}
+.thread{flex:1;padding:24px 24px 140px;display:flex;flex-direction:column;gap:16px}
+.empty{margin-top:32px;text-align:center}
+.empty h2{font-family:'Lora',serif;font-size:21px;font-weight:500;color:var(--navy);margin-bottom:8px}
+.empty p{font-size:14px;color:var(--muted);margin-bottom:22px}
+.suggestions{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:520px;margin:0 auto}
+.sug{padding:10px 15px;background:var(--white);border:1.5px solid var(--border);border-radius:8px;font-size:13px;color:var(--navy);cursor:pointer;text-align:left;font-family:'Inter',sans-serif;transition:border-color .15s,box-shadow .15s}
+.sug:hover{border-color:var(--saffron);box-shadow:0 0 0 3px var(--saffron-bg)}
+
+/* ── Messages ── */
+.msg{display:flex}
+.msg.user{justify-content:flex-end}
+.bubble-user{background:var(--navy);color:#fff;padding:11px 16px;border-radius:12px 12px 2px 12px;max-width:76%;font-size:14.5px;line-height:1.55}
+.card-a{background:var(--white);border:1px solid var(--border);border-radius:2px 12px 12px 12px;max-width:88%;overflow:hidden}
+.card-head{display:flex;align-items:center;gap:8px;padding:10px 16px 0;font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--muted)}
+.cat-badge{background:var(--saffron-bg);color:var(--saffron);border:1px solid var(--saffron-bd);border-radius:4px;padding:1px 6px;font-size:10px;font-weight:600}
+.vbadge{font-size:10px;font-weight:600;letter-spacing:.5px;border-radius:3px;padding:2px 6px;cursor:default;font-family:'IBM Plex Mono',monospace}
+.vbadge.verified  {background:var(--green-bg);color:var(--green);border:1px solid #A7D9B5}
+.vbadge.partial   {background:#FEF9EC;color:#92650A;border:1px solid #F5D78A}
+.vbadge.unverified{background:#FEF2F2;color:#9B1C1C;border:1px solid #FCA5A5}
+.card-body{padding:8px 16px 14px;font-size:14.5px;line-height:1.65;white-space:pre-wrap}
+.sources{border-top:1px solid var(--border);background:#FBFAF6;padding:10px 16px 12px}
+.slabel{font-size:10.5px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--green);display:flex;align-items:center;gap:5px;margin-bottom:8px}
+.slabel::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block}
+.src-item{font-size:12.5px;padding:3px 0 3px 10px;border-left:2px solid var(--border);margin-bottom:5px;font-family:'IBM Plex Mono',monospace}
+.src-item a{color:var(--navy);text-decoration:underline;text-decoration-color:var(--border)}
+.src-item a:hover{text-decoration-color:var(--navy)}
+.no-match{font-size:12px;color:var(--muted);font-style:italic;padding:8px 0 4px}
+.err-card{background:#FEF2F2;border:1px solid #FECACA;color:#991B1B;padding:12px 16px;border-radius:2px 12px 12px 12px;max-width:88%;font-size:13.5px;line-height:1.5}
+.thinking{display:flex;gap:5px;padding:16px}
+.thinking span{width:7px;height:7px;border-radius:50%;background:var(--saffron);animation:pulse 1.1s ease-in-out infinite}
+.thinking span:nth-child(2){animation-delay:.15s}
+.thinking span:nth-child(3){animation-delay:.3s}
+@keyframes pulse{0%,80%,100%{opacity:.25;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
+
+/* ── Fixed input bar — only covers chat column ── */
+.input-bar{position:fixed;bottom:0;left:0;right:var(--sb);background:var(--white);border-top:1px solid var(--border);padding:10px 24px 14px;z-index:100}
+.af{display:none;align-items:center;gap:6px;margin-bottom:6px;font-size:12px;color:var(--muted)}
+.af.on{display:flex}
+.fchip{display:flex;align-items:center;gap:4px;background:var(--navy);color:#fff;border-radius:4px;padding:2px 8px;font-size:11.5px;font-weight:500}
+.fchip button{background:none;border:none;color:#A8B8D8;cursor:pointer;font-size:14px;padding:0;line-height:1}
+.fchip button:hover{color:#fff}
+.input-row{display:flex;gap:10px;align-items:flex-end}
+textarea{flex:1;resize:none;border:1.5px solid var(--border);border-radius:10px;padding:10px 13px;font-family:'Inter',sans-serif;font-size:14px;line-height:1.45;max-height:110px;background:var(--paper);color:var(--text);transition:border-color .15s}
+textarea:focus{outline:none;border-color:var(--navy)}
+.send-btn{background:var(--navy);color:#fff;border:none;border-radius:10px;padding:0 20px;height:44px;font-family:'Inter',sans-serif;font-size:13.5px;font-weight:500;cursor:pointer;flex-shrink:0;transition:background .15s}
+.send-btn:hover:not(:disabled){background:var(--navy-dark)}
+.send-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* ── Subscribe FAB ── */
+.sub-fab{position:fixed;bottom:90px;right:calc(var(--sb) + 20px);background:var(--saffron);color:#fff;border:none;border-radius:24px;padding:9px 16px;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.15);transition:transform .15s;z-index:99;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:6px}
+.sub-fab:hover{transform:translateY(-2px)}
+
+/* ── Sidebar ── */
+.sidebar{width:var(--sb);flex-shrink:0;border-left:1px solid var(--border);background:var(--white);position:sticky;top:0;height:100vh;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.sb-inner{padding:24px 20px 32px}
+.sb-inner h2{font-family:'Lora',serif;font-size:17px;font-weight:600;color:var(--navy);margin-bottom:4px}
+.sb-inner>p{font-size:12.5px;color:var(--muted);margin-bottom:24px;line-height:1.5}
+
+.pipe{margin-bottom:24px}
+.pipe-label{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;letter-spacing:1px;text-transform:uppercase;color:var(--muted);background:var(--paper);border:1px solid var(--border);border-radius:4px;padding:3px 8px;display:inline-block;margin-bottom:12px}
+.pipe-steps{display:flex;flex-direction:column;gap:0}
+.ps{display:flex;align-items:flex-start;gap:10px;padding:7px 0;border-bottom:1px dashed var(--border);position:relative}
+.ps:last-child{border-bottom:none}
+.ps-ic{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;margin-top:1px}
+.ps-ic.blue{background:var(--navy-light)}
+.ps-ic.gold{background:var(--saffron-bg)}
+.ps-text strong{display:block;font-size:12.5px;font-weight:600;color:var(--text);line-height:1.3}
+.ps-text span{display:block;font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;margin-top:1px}
+
+.stack-box{background:var(--paper);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-top:8px}
+.stack-box p{font-size:11px;color:var(--muted);line-height:1.7;font-family:'IBM Plex Mono',monospace}
+.stack-box strong{display:block;font-size:11px;font-weight:600;color:var(--text);margin-bottom:4px;font-family:'Inter',sans-serif}
+
+.byline{margin-top:20px;padding-top:16px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);line-height:1.5}
+.byline strong{color:var(--text);font-weight:600}
+
+/* ── Footer ── */
+footer{background:var(--navy-dark);padding:20px 28px;font-size:12.5px;color:#7A90B8;flex-shrink:0}
+.foot{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.foot strong{color:#A8B8D8}
+
+/* ── Subscribe modal ── */
+.overlay{display:none;position:fixed;inset:0;background:rgba(10,20,40,.55);z-index:200;align-items:center;justify-content:center;padding:20px}
+.overlay.open{display:flex}
+.modal{background:var(--white);border-radius:16px;width:100%;max-width:460px;overflow:hidden}
+.mhead{background:var(--navy);padding:20px 24px;color:#fff}
+.mhead h2{font-family:'Lora',serif;font-size:17px;font-weight:500;margin-bottom:3px}
+.mhead p{font-size:12.5px;color:#A8B8D8}
+.mbody{padding:22px}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:11.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:5px;font-family:'IBM Plex Mono',monospace}
+.field input{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'Inter',sans-serif;font-size:13.5px;color:var(--text);background:var(--paper)}
+.field input:focus{outline:none;border-color:var(--navy)}
+.cgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.ccheck{display:flex;align-items:center;gap:7px;padding:7px 9px;border:1.5px solid var(--border);border-radius:7px;cursor:pointer;font-size:12.5px}
+.ccheck:hover{border-color:var(--navy)}
+.ccheck.sel{background:var(--navy-light);border-color:var(--navy);color:var(--navy);font-weight:500}
+.ccheck input{display:none}
+.cdot{width:13px;height:13px;border-radius:3px;border:1.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.ccheck.sel .cdot{background:var(--navy);border-color:var(--navy)}
+.ccheck.sel .cdot::after{content:'';display:block;width:5px;height:3px;border-left:1.5px solid #fff;border-bottom:1.5px solid #fff;transform:rotate(-45deg) translateY(-1px)}
+.mfoot{display:flex;gap:10px;padding:0 22px 22px}
+.mbtn{flex:1;background:var(--navy);color:#fff;border:none;border-radius:8px;padding:11px;font-family:'Inter',sans-serif;font-size:13.5px;font-weight:500;cursor:pointer}
+.mbtn:hover{background:var(--navy-dark)}
+.mbtn:disabled{opacity:.5;cursor:not-allowed}
+.mghost{background:none;border:1.5px solid var(--border);border-radius:8px;padding:11px 16px;font-family:'Inter',sans-serif;font-size:13.5px;color:var(--muted);cursor:pointer}
+.success-note{display:none;background:var(--green-bg);border:1px solid #A7F3D0;border-radius:8px;padding:12px 16px;margin:0 22px 18px;font-size:13px;color:var(--green);line-height:1.5}
+.success-note.on{display:block}
+
+/* ── Responsive ── */
+@media(max-width:768px){
+  :root{--sb:0px}
+  .sidebar{display:none}
+  .input-bar{right:0}
+  .sub-fab{right:16px;bottom:88px}
+  .thread{padding:16px 14px 130px}
+  .input-bar{padding:8px 14px 12px}
+  .cgrid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hdr">
+    <div>
+      <h1>RBI Circular Intelligence</h1>
+      <p class="sub">Search and explore RBI circulars — answers grounded in official text, with sources.</p>
+    </div>
+    <div class="hdr-meta">
+      <span class="live"></span>Live knowledge base<br>
+      Updated daily · July 2025 onwards
+    </div>
+  </div>
+</header>
+
+<div class="cat-bar">
+  <div class="cat-list" id="catList"></div>
+</div>
+
+<div class="layout">
+
+  <!-- ── Chat column ── -->
+  <div class="chat-col">
+    <div class="thread" id="thread">
+      <div class="empty" id="emptyState">
+        <h2>Ask anything about RBI regulations</h2>
+        <p>Select a theme above to narrow your search, or ask directly below.</p>
+        <div class="suggestions" id="suggestions"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar">
+    <div class="sb-inner">
+      <h2>How it works</h2>
+      <p>Two pipelines — one builds the knowledge base, one answers your question.</p>
+
+      <div class="pipe">
+        <span class="pipe-label">Ingestion — daily 6 AM</span>
+        <div class="pipe-steps">
+          <div class="ps"><div class="ps-ic blue">🌐</div><div class="ps-text"><strong>RBI Website</strong><span>rbi.org.in · ASP.NET</span></div></div>
+          <div class="ps"><div class="ps-ic blue">🎭</div><div class="ps-text"><strong>Playwright</strong><span>headless browser · clicks year/month</span></div></div>
+          <div class="ps"><div class="ps-ic blue">✂️</div><div class="ps-text"><strong>Chunker</strong><span>~800 char semantic chunks</span></div></div>
+          <div class="ps"><div class="ps-ic blue">🔢</div><div class="ps-text"><strong>Embeddings</strong><span>Gemini · 1536 dimensions</span></div></div>
+          <div class="ps"><div class="ps-ic blue">🗄️</div><div class="ps-text"><strong>pgvector</strong><span>Supabase · HNSW index</span></div></div>
+        </div>
+      </div>
+
+      <div class="pipe">
+        <span class="pipe-label">Query — real time (~5s)</span>
+        <div class="pipe-steps">
+          <div class="ps"><div class="ps-ic gold">🧭</div><div class="ps-text"><strong>Classifier</strong><span>RAG / count / out-of-scope</span></div></div>
+          <div class="ps"><div class="ps-ic gold">⚡</div><div class="ps-text"><strong>Inline Expand</strong><span>instant synonym lookup · no LLM</span></div></div>
+          <div class="ps"><div class="ps-ic gold">🔀</div><div class="ps-text"><strong>Hybrid Search</strong><span>Vector 70% + Keyword 30%</span></div></div>
+          <div class="ps"><div class="ps-ic gold">🤖</div><div class="ps-text"><strong>LLM Answer</strong><span>Groq Llama · cites sources</span></div></div>
+          <div class="ps"><div class="ps-ic gold">🧠</div><div class="ps-text"><strong>Memory</strong><span>last 3 exchanges in context</span></div></div>
+        </div>
+      </div>
+
+      <div class="stack-box">
+        <strong>Stack</strong>
+        <p>n8n · LiteLLM · Supabase pgvector · Groq Llama 3.1 · Gemini Embeddings · Playwright · Cloudflare · Netlify</p>
+      </div>
+
+      <div class="byline">
+        Built by <strong>Arif Ahmed</strong><br>
+        14 years in Indian financial services · Mumbai
+      </div>
+    </div>
+  </aside>
+
+</div><!-- /.layout -->
+
+<footer>
+  <div class="foot">
+    <div>Built by <strong>Arif Ahmed</strong> · Mumbai · Indian financial services</div>
+    <div>Knowledge base: July 2025 onwards · Updated daily</div>
+  </div>
+</footer>
+
+<!-- Fixed input bar -->
+<div class="input-bar">
+  <div class="af" id="af">
+    Filtering by
+    <span class="fchip"><span id="flabel"></span><button onclick="clearCat()" title="Clear">×</button></span>
+  </div>
+  <div class="input-row">
+    <textarea id="qi" rows="1" placeholder="Ask about an RBI circular…"></textarea>
+    <button class="send-btn" id="sb">Send</button>
+  </div>
+</div>
+
+<!-- Subscribe FAB -->
+<button class="sub-fab" onclick="openModal()">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+  Subscribe
+</button>
+
+<!-- Subscribe modal -->
+<div class="overlay" id="ov" onclick="obg(event)">
+  <div class="modal">
+    <div class="mhead"><h2>Subscribe to RBI circulars</h2><p>New circulars in your inbox every morning at 9 AM IST</p></div>
+    <div class="mbody">
+      <div class="field"><label>Email</label><input type="email" id="se" placeholder="you@example.com"></div>
+      <div class="field"><label>Themes — leave blank for all</label><div class="cgrid" id="cg"></div></div>
+    </div>
+    <div class="success-note" id="sn">Subscribed! Check your inbox for a confirmation. New matching circulars will arrive every morning.</div>
+    <div class="mfoot" id="mf">
+      <button class="mghost" onclick="closeModal()">Cancel</button>
+      <button class="mbtn" id="subbtn" onclick="doSubscribe()">Subscribe</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const CFG = {
+  CHAT: 'https://rbi-api.paperlight.in/webhook/rbi-query',
+  SUB:  'https://rbi-api.paperlight.in/webhook/rbi-subscribe',
+};
+const CATS = [
+  {id:null,                              l:'All Circulars'},
+  {id:'Banking Regulation',              l:'Banking Regulation'},
+  {id:'Foreign Exchange & FEMA',         l:'Foreign Exchange'},
+  {id:'Payment Systems',                l:'Payment Systems'},
+  {id:'NBFCs & Financial Institutions',  l:'NBFCs & FIs'},
+  {id:'Co-operative & Rural Banks',     l:'Co-op & Rural Banks'},
+  {id:'Consumer Protection & KYC',      l:'Consumer & KYC'},
+  {id:'Monetary Policy',                l:'Monetary Policy'},
+  {id:'Government Securities',          l:'Govt Securities'},
+  {id:'Cybersecurity & IT',             l:'Cybersecurity & IT'},
+];
+const SUGS = [
+  'What are the responsible business conduct directions for payments banks?',
+  'How many circulars are in the database?',
+  'What is the latest RBI circular?',
+  'Explain the CKYC requirements for banks',
+];
+let activeCat = null, busy = false;
+let chatHistory = []; // conversation memory — last 3 exchanges
+
+function init() {
+  const cl = document.getElementById('catList');
+  CATS.forEach(c => {
+    const b = document.createElement('button');
+    b.className = 'chip' + (c.id===null?' active':'');
+    b.textContent = c.l;
+    b.onclick = () => selCat(c.id, b);
+    cl.appendChild(b);
+  });
+  const sg = document.getElementById('suggestions');
+  SUGS.forEach(s => {
+    const b = document.createElement('button'); b.className='sug'; b.textContent=s; b.onclick=()=>go(s); sg.appendChild(b);
+  });
+  const cg = document.getElementById('cg');
+  CATS.filter(c=>c.id!==null).forEach(c=>{
+    const l=document.createElement('label'); l.className='ccheck';
+    l.innerHTML=`<input type="checkbox" value="${c.id}"><span class="cdot"></span>${c.l}`;
+    l.onclick=(e)=>{ e.preventDefault(); l.classList.toggle('sel'); }; cg.appendChild(l);
+  });
+  const ta=document.getElementById('qi');
+  ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.min(ta.scrollHeight,110)+'px'});
+  ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();go()}});
+  document.getElementById('sb').onclick=()=>go();
+}
+
+function selCat(id, btn) {
+  activeCat=id;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active')); btn.classList.add('active');
+  const af=document.getElementById('af');
+  if(id){document.getElementById('flabel').textContent=CATS.find(c=>c.id===id)?.l??id; af.classList.add('on');}
+  else af.classList.remove('on');
+}
+function clearCat(){
+  activeCat=null;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+  document.querySelector('.chip').classList.add('active');
+  document.getElementById('af').classList.remove('on');
+}
+
+function go(forced) {
+  const ta=document.getElementById('qi');
+  const q=(forced||ta.value).trim();
+  if(!q||busy) return;
+  document.getElementById('emptyState').style.display='none';
+  addUser(q);
+  if(!forced){ta.value='';ta.style.height='auto';}
+  const thinking=addThink();
+  busy=true; document.getElementById('sb').disabled=true;
+  const body={query:q};
+  if(activeCat) body.category=activeCat;
+  if(chatHistory.length>0) body.history=chatHistory.slice(-6); // last 3 exchanges
+  fetch(CFG.CHAT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+    .then(r=>{if(!r.ok)throw new Error(r.status);return r.json();})
+    .then(d=>{
+      renderA(thinking,d);
+      // Store in conversation memory
+      chatHistory.push({role:'user',content:q});
+      chatHistory.push({role:'assistant',content:d.answer||''});
+      if(chatHistory.length>12) chatHistory=chatHistory.slice(-12); // keep last 6 exchanges
+    })
+    .catch(e=>renderErr(thinking,e.message))
+    .finally(()=>{busy=false;document.getElementById('sb').disabled=false;document.getElementById('qi').focus();});
+}
+
+function addUser(t){
+  const el=document.createElement('div'); el.className='msg user';
+  el.innerHTML='<div class="bubble-user"></div>'; el.querySelector('.bubble-user').textContent=t;
+  document.getElementById('thread').appendChild(el); window.scrollTo(0,document.body.scrollHeight);
+}
+function addThink(){
+  const el=document.createElement('div'); el.className='msg';
+  el.innerHTML='<div class="card-a"><div class="thinking"><span></span><span></span><span></span></div></div>';
+  document.getElementById('thread').appendChild(el); window.scrollTo(0,document.body.scrollHeight); return el;
+}
+function renderA(el,d){
+  const srcs=Array.isArray(d.sources)?d.sources:[];
+  const ans=d.answer||d.replyText||'No answer returned.';
+  const cl=activeCat?CATS.find(c=>c.id===activeCat)?.l:null;
+  const qt=d.queryType||'rag';
+  let sh='';
+  if(srcs.length) sh=`<div class="sources"><div class="slabel">Sourced from ${srcs.length} circular${srcs.length>1?'s':''}</div>${srcs.map(s=>`<div class="src-item"><a href="${s.url}" target="_blank" rel="noopener">${s.title}</a></div>`).join('')}</div>`;
+  else if(qt!=='outofscope'&&qt!=='meta') sh='<div class="sources"><p class="no-match">No matching circular found.</p></div>';
+  const cb=cl?`<span class="cat-badge">${cl}</span>`:'';
+  el.innerHTML=`<div class="card-a"><div class="card-head">Response ${cb}</div><div class="card-body"></div>${sh}</div>`;
+  el.querySelector('.card-body').textContent=ans;
+  window.scrollTo(0,document.body.scrollHeight);
+}
+function renderErr(el,m){
+  el.innerHTML=`<div class="err-card">Couldn't reach the agent: ${m}</div>`;
+  window.scrollTo(0,document.body.scrollHeight);
+}
+
+function openModal(){document.getElementById('ov').classList.add('open');document.getElementById('se').focus();}
+function closeModal(){document.getElementById('ov').classList.remove('open');}
+function obg(e){if(e.target===document.getElementById('ov'))closeModal();}
+async function doSubscribe(){
+  const email=document.getElementById('se').value.trim();
+  if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){document.getElementById('se').focus();return;}
+  const cats=[...document.querySelectorAll('#cg .ccheck.sel input')].map(i=>i.value);
+  const btn=document.getElementById('subbtn'); btn.disabled=true; btn.textContent='Subscribing…';
+  try{
+    const r=await fetch(CFG.SUB,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,categories:cats})});
+    if(!r.ok)throw new Error(r.status);
+    document.getElementById('sn').classList.add('on');
+    document.getElementById('mf').style.display='none';
+  }catch(e){btn.disabled=false;btn.textContent='Subscribe';alert('Could not subscribe: '+e.message);}
+}
+document.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>
