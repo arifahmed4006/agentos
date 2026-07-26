@@ -1,0 +1,5 @@
+livekit-agents[deepgram,groq,silero,turn-detector,noise-cancellation]~=1.0
+livekit-plugins-sarvam
+livekit-plugins-noise-cancellation==0.3.0
+python-dotenv
+httpx

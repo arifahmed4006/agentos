@@ -6,3 +6,5 @@
 .DS_Store
 *.log
 volumes/
+venv/
+__pycache__/
