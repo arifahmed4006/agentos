@@ -1,0 +1,20 @@
+name: Mirror to Paperlight
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Mirror to Paperlight GitHub
+        run: |
+          git remote add paperlight https://x-access-token:${{ secrets.PAPERLIGHT_TOKEN }}@github.com/paperlight-ai/agentos.git
+          git push paperlight main --force
