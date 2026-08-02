@@ -10,11 +10,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Mirror to Paperlight GitHub
+        env:
+          TOKEN: ${{ secrets.PAPERLIGHT_TOKEN }}
         run: |
-          git remote add paperlight https://x-access-token:${{ secrets.PAPERLIGHT_TOKEN }}@github.com/paperlight-ai/agentos.git
+          git remote add paperlight https://paperlight-ai:${TOKEN}@github.com/paperlight-ai/agentos.git
           git push paperlight main --force
