@@ -14,9 +14,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Mirror to Paperlight GitHub
-        env:
-          TOKEN: ${{ secrets.PAPERLIGHT_TOKEN }}
+      - name: Push to Paperlight
         run: |
-          git remote add paperlight https://paperlight-ai:${TOKEN}@github.com/paperlight-ai/agentos.git
-          git push paperlight main --force
+          git remote add paperlight https://${{ secrets.PAPERLIGHT_TOKEN }}@github.com/paperlight-ai/agentos.git
+          git push paperlight HEAD:main --force
